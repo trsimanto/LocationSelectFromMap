@@ -3,10 +3,14 @@ package com.towhid.map
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.location.Address
+import android.location.Geocoder
 import android.location.Location
+import android.location.LocationListener
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.PersistableBundle
+import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -17,11 +21,15 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.tasks.OnCompleteListener
 import com.google.android.gms.tasks.Task
+import java.util.*
 
-class MainActivity : AppCompatActivity(), OnMapReadyCallback {
+class MainActivity : AppCompatActivity(), OnMapReadyCallback, LocationListener,
+    GoogleMap.OnCameraMoveListener, GoogleMap.OnCameraMoveStartedListener,
+    GoogleMap.OnCameraIdleListener {
 
     private var mMap: GoogleMap? = null
     lateinit var mapView: MapView
+    lateinit var tvCurrentAddress: TextView
     private val MAP_VIEW_BUNDLE_KEY = "MapViewBundleKey"
 
     private val DEFAULT_ZOOM = 15f
@@ -32,6 +40,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         mapView = findViewById<MapView>(R.id.map1)
+        tvCurrentAddress = findViewById<TextView>(R.id.tvAdd)
 
         var mapViewBundle: Bundle? = null
         if (savedInstanceState != null) {
@@ -54,6 +63,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             return
         }
         mMap!!.isMyLocationEnabled = true
+        mMap!!.setOnCameraMoveListener(this)
+        mMap!!.setOnCameraMoveStartedListener(this)
+        mMap!!.setOnCameraIdleListener(this)
         getCurrentLocation()
     }
 
@@ -93,7 +105,58 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun moveCamera(latLng: LatLng, zoom: Float) {
-        mMap!!.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng,zoom))
+        mMap!!.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, zoom))
+    }
+
+    override fun onLocationChanged(location: Location) {
+        val geocoder = Geocoder(this, Locale.getDefault())
+        var addresses: List<Address>? = null
+        try {
+            addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        setAddress(addresses!![0])
+    }
+
+    private fun setAddress(address: Address) {
+        var addressLocation = ""
+        if (address.getAddressLine(0) != null) {
+            addressLocation += address.getAddressLine(0)
+        }
+        if (address.getAddressLine(1) != null) {
+            addressLocation += address.getAddressLine(1)
+        }
+        if (address.getAddressLine(2) != null) {
+            addressLocation += address.getAddressLine(2)
+        }
+        if (address.getAddressLine(3) != null) {
+            addressLocation += address.getAddressLine(3)
+        }
+        tvCurrentAddress!!.setText(addressLocation)
+    }
+
+    override fun onCameraMove() {
+
+    }
+
+    override fun onCameraMoveStarted(p0: Int) {
+
+    }
+
+    override fun onCameraIdle() {
+        var address: List<Address>? = null
+        val geocoder = Geocoder(this, Locale.getDefault())
+        try {
+            address = geocoder.getFromLocation(
+                mMap!!.cameraPosition.target.latitude,
+                mMap!!.cameraPosition.target.longitude,
+                1
+            )
+            setAddress(address!![0])
+        } catch (e: Exception) {
+
+        }
     }
 
 
